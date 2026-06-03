@@ -1,127 +1,99 @@
-# MERN Inventory & Order Management System
+# Chemical Inventory & Order Management System
 
-A simplified, robust B2B inventory and order management system. Built specifically using the **MERN (MongoDB, Express, React, Node.js) Stack** with role-based access controls for **Administrators** and **Sellers**.
+This is a simple B2B inventory and order tracking website built using the MERN stack (MongoDB, Express, React, Node.js). 
 
----
+It features basic role-based access control with two roles: **Admin** (owner) and **Seller** (sales rep/buyer). 
 
-## Technical Stack & Architecture
-
-- **Frontend**: React (Vite), React Router, Axios, Lucide React (Icons), and Custom Glassmorphic Vanilla CSS.
-- **Backend**: Node.js, Express, JSON Web Token (JWT) Authentication, Bcrypt password hashing.
-- **Database**: MongoDB (Mongoose Object Modeling) supporting local or Atlas instances.
-
-```mermaid
-graph TD
-  A[React Frontend] -->|HTTP Requests with JWT Bearer Token| B[Express API Server]
-  B -->|Mongoose Queries| C[(MongoDB Database)]
-  B -->|Role Auth & Pricing Math| B
-```
+## How the app works
+- **Admin (Owner)**: Can add new products to the inventory, edit prices or stock quantities, and view incoming orders/quotations to approve or reject them. Approving an order automatically deducts the quantities from the warehouse stock.
+- **Seller (User/Buyer)**: Can search the product catalog, add items to an order list, and submit a quotation request. Orders are placed in the product's native unit (e.g. grams, items, liters) and the total price is calculated instantly (Quantity * Rate).
 
 ---
 
-## Database Schemas
+## Technical Setup
 
-### 1. User Schema (`User` Model)
-Represents accounts and determines permissions.
-- `name` (String, required): User's name.
-- `email` (String, unique, required): Case-insensitive.
-- `password` (String, required, select: false): Bcrypt hashed.
-- `role` (String, enum: `['admin', 'seller']`, default: `'seller'`).
-
-### 2. Product Schema (`Product` Model)
-Stores catalog items and inventory levels.
-- `name` (String, required): Product display name.
-- `sku` (String, unique, required): Unique SKU code.
-- `description` (String, optional).
-- `unit` (String, enum: `['g', 'kg', 'L', 'mL', 'items']`, required): The fixed unit for this product.
-- `pricePerUnit` (Number, required): Numeric price in INR per unit.
-- `stockQuantity` (Number, required, default: 0): Available stock level in product unit.
-- `category` (String, default: `'General'`).
-
-### 3. Order Schema (`Order` Model)
-Tracks sales proposals and quotation histories.
-- `seller` (ObjectId ref User, required): The salesperson placing the quotation.
-- `items` (Array):
-  - `product` (ObjectId ref Product, required): Reference to product.
-  - `quantity` (Number, required): Ordered quantity (must match product unit).
-  - `unit` (String, required): Product's fixed unit.
-  - `calculatedPrice` (Number, required): Total price for this item (Quantity × Price Per Unit).
-- `totalAmount` (Number, required): Sum of item prices in INR.
-- `status` (String, enum: `['pending', 'approved', 'completed', 'rejected']`, default: `'pending'`).
+- **Frontend**: React (Vite) styled with clean vanilla CSS.
+- **Backend**: Node.js & Express API using JSON Web Tokens (JWT) for user login sessions.
+- **Database**: MongoDB (Mongoose schemas).
 
 ---
 
-## Setup Instructions
+## Database Schema (Mongoose Models)
+
+### 1. User (`models/User.js`)
+Stores user login details.
+- `name` (String): Display name.
+- `email` (String): Unique login email.
+- `password` (String): Hashed using bcrypt.
+- `role` (String): Can be `admin` or `seller`.
+
+### 2. Product (`models/Product.js`)
+Catalog of products available for sale.
+- `name` (String): Name of the chemical.
+- `sku` (String): Unique SKU code.
+- `unit` (String): Unit of measurement (`g`, `kg`, `L`, `mL`, or `items`).
+- `pricePerUnit` (Number): Price in INR for one unit.
+- `stockQuantity` (Number): How many units are available.
+- `category` (String): Filter category (e.g., Chemicals, Acids, Labware).
+
+### 3. Order (`models/Order.js`)
+Tracks the orders/quotations submitted.
+- `seller` (ObjectId ref User): The seller who placed the order.
+- `items`: Array of objects containing:
+  - `product` (ObjectId ref Product)
+  - `quantity` (Number)
+  - `unit` (String)
+  - `calculatedPrice` (Number)
+- `totalAmount` (Number): Total cost of the order in INR.
+- `status` (String): `pending` (default), `approved`, `completed`, or `rejected`.
+
+---
+
+## How to Run the Project Locally
 
 ### 1. Prerequisites
-- **Node.js** (v18 or higher)
-- **MongoDB** running locally (e.g. `mongodb://127.0.0.1:27017`) or a connection URI for **MongoDB Atlas** (cloud database).
+Make sure you have **Node.js** and **MongoDB** installed on your system.
 
-### 2. Backend Setup
-1. Navigate to the server folder:
+### 2. Run the Backend Server
+1. Open your terminal and go to the server directory:
    ```bash
    cd server
    ```
-2. Open or configure the `.env` file inside `server/`:
+2. Create a `.env` file in the `server` folder with these values:
    ```env
    PORT=5000
    MONGODB_URI=mongodb://127.0.0.1:27017/inventory-management
-   JWT_SECRET=supersecretjwtkey12345
+   JWT_SECRET=some_secret_key_123
    ```
-3. Start the backend server:
+3. Start the server:
    ```bash
-   npm run start
+   npm start
    ```
-   The API will listen at `http://localhost:5000`.
+   The backend will run on `http://localhost:5000`.
 
-### 3. Frontend Setup
-1. Navigate to the client folder:
+### 3. Run the React Frontend
+1. Open a new terminal window and go to the client directory:
    ```bash
    cd client
    ```
-2. Start the Vite React development server:
+2. Start the Vite development server:
    ```bash
    npm run dev
    ```
-   Navigate your browser to `http://localhost:5173`.
+   Open your browser and go to `http://localhost:5173`.
 
 ---
 
-## Verification & Automated Testing
-The backend features an automated database flow test that registers users, seeds inventory items, places orders, and verifies stock deductions directly:
+## Testing / Seeding Data
+We added an automated integration test script that seeds the database with test accounts, products, and a sample order. You can use it to instantly populate your DB:
 
-1. Open a terminal inside the `server/` directory.
-2. Run the command:
+1. In the `server` folder, run:
    ```bash
    node test_flow.js
    ```
-3. A successful execution will output `>>> SUCCESS: ALL TESTS PASSED SUCCESSFULLY! <<<`.
+2. It will output `>>> SUCCESS: ALL TESTS PASSED SUCCESSFULLY! <<<` if everything is working fine.
 
----
-
-## User Panels & Test Credentials
-
-### Test Accounts
-You can register new accounts in the UI register form, or use these pre-loaded accounts:
-
-| Email | Password | Role | Description |
-|---|---|---|---|
-| `admin@test.com` | `password123` | **Admin** | Full management controls |
-| `seller@test.com` | `password123` | **Seller** | Proposal creation and view catalog |
-
-### 1. Seller Panel
-- **My Dashboard**: View proposal summaries, active quotes, and approved sales value.
-- **Create New Order**:
-  - Search catalog items.
-  - Add items to the basket (orders are placed directly in the product's unit).
-  - See live price totals (Quantity × Rate) and stock availability warnings.
-  - Submit the proposal.
-
-### 2. Admin Panel
-- **Admin Dashboard**: View inventory statistics (Total Products, Low Stock Watchlist, and Total Approved Sales).
-- **Inventory CRUD**: Create, edit, adjust stock, or delete products.
-- **Incoming Quotations Board**:
-  - Review orders placed by sellers.
-  - **Approve**: Subtracts quantities directly from product stock and sets status to approved.
-  - **Reject**: Cancels the order (and reverts stock if it was already approved).
-  - **Complete**: Finalizes fulfilled orders.
+### Test Accounts (Pre-seeded by test_flow.js)
+You can log in with these test accounts:
+- **Admin**: email `admin@test.com` | password `password123`
+- **Seller**: email `seller@test.com` | password `password123`
