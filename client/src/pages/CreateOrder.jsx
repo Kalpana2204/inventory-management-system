@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { getCompatibleUnits, calculatePrice, convertQuantity } from '../utils/unitConverter';
 import { Search, ShoppingCart, Trash2, ArrowLeft, Send, Check } from 'lucide-react';
 
 const CreateOrder = () => {
@@ -27,7 +26,7 @@ const CreateOrder = () => {
       setProducts(res.data.products);
     } catch (err) {
       console.error(err);
-      showToast('Failed to load products catálogo', 'error');
+      showToast('Failed to load products catalogue', 'error');
     } finally {
       setLoading(false);
     }
@@ -50,17 +49,16 @@ const CreateOrder = () => {
       return;
     }
 
-    // Default configuration
-    const defaultUnit = product.baseUnit;
+    // Default configuration: direct multiplication
     const defaultQty = 1;
-    const initialPrice = calculatePrice(defaultQty, defaultUnit, product.baseUnit, product.pricePerBaseUnit);
+    const initialPrice = Number((defaultQty * product.pricePerUnit).toFixed(4));
 
     setCart((prev) => [
       ...prev,
       {
         product,
         quantity: defaultQty,
-        unit: defaultUnit,
+        unit: product.unit,
         calculatedPrice: initialPrice,
         error: '',
       },
@@ -72,7 +70,7 @@ const CreateOrder = () => {
     setCart((prev) => prev.filter((item) => item.product._id !== productId));
   };
 
-  // Update cart item quantity or unit
+  // Update cart item quantity directly
   const updateCartItem = (productId, field, value) => {
     setCart((prev) =>
       prev.map((item) => {
@@ -81,32 +79,18 @@ const CreateOrder = () => {
         const updatedItem = { ...item };
         if (field === 'quantity') {
           updatedItem.quantity = value === '' ? '' : parseFloat(value);
-        } else if (field === 'unit') {
-          updatedItem.unit = value;
         }
 
         // Live validations and calculations
-        if (updatedItem.quantity > 0 && updatedItem.unit) {
-          try {
-            // Check stock compatibility
-            const convertedQty = convertQuantity(updatedItem.quantity, updatedItem.unit, item.product.baseUnit);
-            if (convertedQty > item.product.stockQuantity) {
-              updatedItem.error = `Exceeds stock: Only ${item.product.stockQuantity} ${item.product.baseUnit} available. (You entered ${Number(convertedQty.toFixed(4))} ${item.product.baseUnit})`;
-            } else {
-              updatedItem.error = '';
-            }
-
-            // Calculate price
-            updatedItem.calculatedPrice = calculatePrice(
-              updatedItem.quantity,
-              updatedItem.unit,
-              item.product.baseUnit,
-              item.product.pricePerBaseUnit
-            );
-          } catch (err) {
-            updatedItem.error = err.message;
-            updatedItem.calculatedPrice = 0;
+        if (updatedItem.quantity > 0) {
+          if (updatedItem.quantity > item.product.stockQuantity) {
+            updatedItem.error = `Exceeds stock: Only ${item.product.stockQuantity} ${item.product.unit} available.`;
+          } else {
+            updatedItem.error = '';
           }
+
+          // Calculate price directly: Qty * Price
+          updatedItem.calculatedPrice = Number((updatedItem.quantity * item.product.pricePerUnit).toFixed(4));
         } else {
           updatedItem.calculatedPrice = 0;
           updatedItem.error = 'Quantity must be greater than 0';
@@ -206,11 +190,11 @@ const CreateOrder = () => {
                       <div>
                         <strong style={{ fontSize: '0.95rem', display: 'block' }}>{prod.name}</strong>
                         <span className="text-secondary-label" style={{ fontSize: '0.75rem' }}>
-                          SKU: <code>{prod.sku}</code> | Rate: <strong>₹{prod.pricePerBaseUnit}</strong> / {prod.baseUnit}
+                          SKU: <code>{prod.sku}</code> | Rate: <strong>₹{prod.pricePerUnit}</strong> / {prod.unit}
                         </span>
                         <div style={{ fontSize: '0.75rem', marginTop: '2px' }}>
                           Stock: <span className={prod.stockQuantity <= 10 ? 'text-warning' : 'text-success'} style={{ fontWeight: 600 }}>
-                            {prod.stockQuantity} {prod.baseUnit}
+                            {prod.stockQuantity} {prod.unit}
                           </span>
                         </div>
                       </div>
@@ -248,7 +232,6 @@ const CreateOrder = () => {
               <div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem', maxHeight: '420px', overflowY: 'auto', paddingRight: '4px' }}>
                   {cart.map((item) => {
-                    const compatibleUnits = getCompatibleUnits(item.product.baseUnit);
                     return (
                       <div key={item.product._id} style={{ padding: '0.75rem', border: '1px solid var(--border-color)', borderRadius: '8px', background: 'rgba(0,0,0,0.1)' }}>
                         <div className="flex-between mb-2">
@@ -278,19 +261,12 @@ const CreateOrder = () => {
                             />
                           </div>
 
-                          {/* Unit selection */}
-                          <div style={{ width: '100px' }}>
+                          {/* Unit display */}
+                          <div style={{ width: '80px' }}>
                             <label className="form-label" style={{ fontSize: '0.7rem', marginBottom: '2px' }}>Unit</label>
-                            <select
-                              className="form-control"
-                              style={{ padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
-                              value={item.unit}
-                              onChange={(e) => updateCartItem(item.product._id, 'unit', e.target.value)}
-                            >
-                              {compatibleUnits.map((u, i) => (
-                                <option key={i} value={u}>{u}</option>
-                              ))}
-                            </select>
+                            <div className="form-control text-center" style={{ padding: '0.4rem 0.6rem', fontSize: '0.85rem', background: 'rgba(0, 0, 0, 0.4)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
+                              {item.product.unit}
+                            </div>
                           </div>
                         </div>
 
@@ -301,7 +277,7 @@ const CreateOrder = () => {
                         ) : (
                           <div className="flex-between" style={{ marginTop: '8px', fontSize: '0.8rem' }}>
                             <span className="text-secondary-label">
-                              Rate: ₹{item.product.pricePerBaseUnit}/{item.product.baseUnit}
+                              Rate: ₹{item.product.pricePerUnit}/{item.product.unit}
                             </span>
                             <span className="text-success" style={{ fontWeight: 600 }}>
                               Price: ₹{Number(item.calculatedPrice.toFixed(2)).toLocaleString('en-IN')}

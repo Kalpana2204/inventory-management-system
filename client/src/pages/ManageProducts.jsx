@@ -11,12 +11,12 @@ const ManageProducts = () => {
 
   // Form states
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingId, setEditingId] = useState(null); // Null for create, ID for edit
+  const [editingId, setEditingId] = useState(null);
   const [name, setName] = useState('');
   const [sku, setSku] = useState('');
   const [description, setDescription] = useState('');
-  const [baseUnit, setBaseUnit] = useState('items');
-  const [pricePerBaseUnit, setPricePerBaseUnit] = useState('');
+  const [unit, setUnit] = useState('items');
+  const [pricePerUnit, setPricePerUnit] = useState('');
   const [stockQuantity, setStockQuantity] = useState('');
   const [category, setCategory] = useState('');
 
@@ -46,8 +46,8 @@ const ManageProducts = () => {
     setName('');
     setSku('');
     setDescription('');
-    setBaseUnit('items');
-    setPricePerBaseUnit('');
+    setUnit('items');
+    setPricePerUnit('');
     setStockQuantity('');
     setCategory('General');
     setIsModalOpen(true);
@@ -58,8 +58,8 @@ const ManageProducts = () => {
     setName(product.name);
     setSku(product.sku);
     setDescription(product.description || '');
-    setBaseUnit(product.baseUnit);
-    setPricePerBaseUnit(product.pricePerBaseUnit);
+    setUnit(product.unit);
+    setPricePerUnit(product.pricePerUnit);
     setStockQuantity(product.stockQuantity);
     setCategory(product.category || 'General');
     setIsModalOpen(true);
@@ -71,7 +71,7 @@ const ManageProducts = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!name || !sku || !pricePerBaseUnit || stockQuantity === '') {
+    if (!name || !sku || !pricePerUnit || stockQuantity === '') {
       showToast('Please fill out all required fields', 'error');
       return;
     }
@@ -80,8 +80,8 @@ const ManageProducts = () => {
       name,
       sku,
       description,
-      baseUnit,
-      pricePerBaseUnit: parseFloat(pricePerBaseUnit),
+      unit,
+      pricePerUnit: parseFloat(pricePerUnit),
       stockQuantity: parseFloat(stockQuantity),
       category: category || 'General',
     };
@@ -188,8 +188,8 @@ const ManageProducts = () => {
                   <th>Product Details</th>
                   <th>SKU</th>
                   <th>Category</th>
-                  <th>Base Unit</th>
-                  <th>Price per Base Unit (INR)</th>
+                  <th>Unit</th>
+                  <th>Price per Unit (INR)</th>
                   <th>Available Stock</th>
                   <th className="text-right">Actions</th>
                 </tr>
@@ -216,14 +216,14 @@ const ManageProducts = () => {
                       </span>
                     </td>
                     <td>
-                      <strong>{prod.baseUnit}</strong>
+                      <strong>{prod.unit}</strong>
                     </td>
                     <td>
-                      <strong>₹{Number(prod.pricePerBaseUnit.toFixed(4))}</strong>
+                      <strong>₹{Number(prod.pricePerUnit.toFixed(4))}</strong>
                     </td>
                     <td>
                       <span className={prod.stockQuantity <= 10 ? 'text-warning' : 'text-success'} style={{ fontWeight: 600 }}>
-                        {prod.stockQuantity} {prod.baseUnit}
+                        {prod.stockQuantity} {prod.unit}
                       </span>
                     </td>
                     <td className="text-right">
@@ -305,11 +305,11 @@ const ManageProducts = () => {
 
               <div className="grid-cols-3" style={{ gap: '1rem', marginBottom: 0 }}>
                 <div className="form-group">
-                  <label className="form-label">Base Unit *</label>
+                  <label className="form-label">Unit *</label>
                   <select
                     className="form-control"
-                    value={baseUnit}
-                    onChange={(e) => setBaseUnit(e.target.value)}
+                    value={unit}
+                    onChange={(e) => setUnit(e.target.value)}
                   >
                     <option value="items">items</option>
                     <option value="g">grams (g)</option>
@@ -326,8 +326,8 @@ const ManageProducts = () => {
                     step="0.0001"
                     className="form-control"
                     placeholder="INR Rate"
-                    value={pricePerBaseUnit}
-                    onChange={(e) => setPricePerBaseUnit(e.target.value)}
+                    value={pricePerUnit}
+                    onChange={(e) => setPricePerUnit(e.target.value)}
                     required
                   />
                 </div>

@@ -17,14 +17,14 @@ const productSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
-    baseUnit: {
+    unit: {
       type: String,
-      required: [true, 'Please provide a base unit'],
+      required: [true, 'Please provide a product unit'],
       enum: ['g', 'kg', 'L', 'mL', 'items'],
     },
-    pricePerBaseUnit: {
+    pricePerUnit: {
       type: Number,
-      required: [true, 'Please provide the base price in INR'],
+      required: [true, 'Please provide the price in INR'],
       min: [0, 'Price cannot be negative'],
     },
     stockQuantity: {

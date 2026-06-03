@@ -3,10 +3,9 @@ const router = express.Router();
 const Order = require('../models/Order');
 const Product = require('../models/Product');
 const { protect, authorize } = require('../middleware/auth');
-const { calculatePrice, convertQuantity, areUnitsCompatible } = require('../utils/unitConverter');
 
 // @route   POST /api/orders
-// @desc    Place a new quotation/order
+// @desc    Place a new quotation/order (Direct, no unit conversions)
 // @access  Private (Seller/User only)
 router.post('/', protect, authorize('seller'), async (req, res) => {
   const { items } = req.body;
@@ -19,7 +18,7 @@ router.post('/', protect, authorize('seller'), async (req, res) => {
     let totalAmount = 0;
     const orderItems = [];
 
-    // Validate items and calculate prices
+    // Validate items and calculate prices directly
     for (const item of items) {
       const { productId, quantity, unit } = item;
 
@@ -29,31 +28,30 @@ router.post('/', protect, authorize('seller'), async (req, res) => {
         return res.status(404).json({ success: false, message: `Product not found: ${productId}` });
       }
 
-      // Check unit compatibility
-      if (!areUnitsCompatible(unit, product.baseUnit)) {
+      // Ensure ordered unit matches the product's defined unit
+      if (unit && unit !== product.unit) {
         return res.status(400).json({
           success: false,
-          message: `Incompatible unit '${unit}' for product '${product.name}' (base unit: '${product.baseUnit}')`,
+          message: `Ordered unit '${unit}' does not match product '${product.name}' unit of '${product.unit}'`,
         });
       }
 
-      // Calculate quantity converted to base unit to check stock
-      const qtyInBaseUnit = convertQuantity(quantity, unit, product.baseUnit);
-      if (qtyInBaseUnit > product.stockQuantity) {
+      // Check stock directly
+      if (quantity > product.stockQuantity) {
         return res.status(400).json({
           success: false,
-          message: `Insufficient stock for product '${product.name}'. Available: ${product.stockQuantity} ${product.baseUnit}, Requested: ${qtyInBaseUnit} ${product.baseUnit} (equivalent to ${quantity} ${unit})`,
+          message: `Insufficient stock for product '${product.name}'. Available: ${product.stockQuantity} ${product.unit}, Requested: ${quantity} ${product.unit}`,
         });
       }
 
-      // Calculate price
-      const calculatedPrice = calculatePrice(quantity, unit, product.baseUnit, product.pricePerBaseUnit);
+      // Calculate price directly
+      const calculatedPrice = Number((quantity * product.pricePerUnit).toFixed(4));
       totalAmount += calculatedPrice;
 
       orderItems.push({
         product: productId,
         quantity,
-        unit,
+        unit: product.unit, // Always use product's native unit
         calculatedPrice,
       });
     }
@@ -86,7 +84,7 @@ router.get('/', protect, async (req, res) => {
 
     const orders = await Order.find(query)
       .populate('seller', 'name email')
-      .populate('items.product', 'name sku baseUnit pricePerBaseUnit')
+      .populate('items.product', 'name sku unit pricePerUnit')
       .sort({ createdAt: -1 });
 
     res.json({ success: true, count: orders.length, orders });
@@ -97,7 +95,7 @@ router.get('/', protect, async (req, res) => {
 });
 
 // @route   PUT /api/orders/:id/status
-// @desc    Update order/quotation status (Admin only)
+// @desc    Update order/quotation status (Admin only, direct stock update)
 // @access  Private (Admin only)
 router.put('/:id/status', protect, authorize('admin'), async (req, res) => {
   const { status } = req.body;
@@ -114,7 +112,7 @@ router.put('/:id/status', protect, authorize('admin'), async (req, res) => {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
 
-    // Handle stock changes on approval
+    // Handle stock deduction on approval
     if (status === 'approved' && order.status !== 'approved') {
       // 1. Check if we have sufficient stock for all items
       for (const item of order.items) {
@@ -126,32 +124,29 @@ router.put('/:id/status', protect, authorize('admin'), async (req, res) => {
           });
         }
 
-        const qtyInBaseUnit = convertQuantity(item.quantity, item.unit, product.baseUnit);
-        if (qtyInBaseUnit > product.stockQuantity) {
+        if (item.quantity > product.stockQuantity) {
           return res.status(400).json({
             success: false,
-            message: `Cannot approve order. Product '${product.name}' has insufficient stock. Available: ${product.stockQuantity} ${product.baseUnit}, Order requires: ${qtyInBaseUnit} ${product.baseUnit}`,
+            message: `Cannot approve order. Product '${product.name}' has insufficient stock. Available: ${product.stockQuantity} ${product.unit}, Order requires: ${item.quantity} ${product.unit}`,
           });
         }
       }
 
-      // 2. Deduct stock
+      // 2. Deduct stock directly
       for (const item of order.items) {
         const product = await Product.findById(item.product._id);
-        const qtyInBaseUnit = convertQuantity(item.quantity, item.unit, product.baseUnit);
-        product.stockQuantity = Number((product.stockQuantity - qtyInBaseUnit).toFixed(4));
+        product.stockQuantity = Number((product.stockQuantity - item.quantity).toFixed(4));
         await product.save();
       }
     }
 
-    // Handle returning stock if moving away from approved/completed/pending back to rejected
+    // Handle returning stock if moving away from approved/completed back to rejected
     if (status === 'rejected' && order.status === 'approved') {
-      // Revert stock deductions
+      // Revert stock deductions directly
       for (const item of order.items) {
         const product = await Product.findById(item.product._id);
         if (product) {
-          const qtyInBaseUnit = convertQuantity(item.quantity, item.unit, product.baseUnit);
-          product.stockQuantity = Number((product.stockQuantity + qtyInBaseUnit).toFixed(4));
+          product.stockQuantity = Number((product.stockQuantity + item.quantity).toFixed(4));
           await product.save();
         }
       }

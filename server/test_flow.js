@@ -2,7 +2,6 @@ const mongoose = require('mongoose');
 const User = require('./models/User');
 const Product = require('./models/Product');
 const Order = require('./models/Order');
-const { calculatePrice, convertQuantity } = require('./utils/unitConverter');
 
 const MONGODB_URI = 'mongodb://127.0.0.1:27017/inventory-management';
 
@@ -38,58 +37,58 @@ async function runTest() {
 
   // 2. Admin creates products
   console.log('\n--- Step 2: Creating Products ---');
-  // 1000g of Sodium Chloride (Stored in 'g', priced per 'g')
+  // 1000g of Sodium Chloride (Stored in 'g')
   const prodA = await Product.create({
     name: 'Sodium Chloride (NaCl)',
     sku: 'NACL-100G',
-    baseUnit: 'g',
-    pricePerBaseUnit: 0.5, // 0.5 INR per gram = 500 INR per kg
+    unit: 'g',
+    pricePerUnit: 0.5, // 0.5 INR per gram
     stockQuantity: 1000,
     category: 'Chemicals'
   });
-  console.log(`Product A Created: ${prodA.name} | Stock: ${prodA.stockQuantity} ${prodA.baseUnit} | Price: ₹${prodA.pricePerBaseUnit}/${prodA.baseUnit}`);
+  console.log(`Product A Created: ${prodA.name} | Stock: ${prodA.stockQuantity} ${prodA.unit} | Price: ₹${prodA.pricePerUnit}/${prodA.unit}`);
 
-  // 2000mL of Hydrochloric Acid (Stored in 'mL', priced per 'mL')
+  // 2000mL of Hydrochloric Acid (Stored in 'mL')
   const prodB = await Product.create({
     name: 'Hydrochloric Acid (HCl)',
     sku: 'HCL-1L',
-    baseUnit: 'mL',
-    pricePerBaseUnit: 0.08, // 0.08 INR per mL = 80 INR per L
+    unit: 'mL',
+    pricePerUnit: 0.08, // 0.08 INR per mL
     stockQuantity: 2000,
     category: 'Acids'
   });
-  console.log(`Product B Created: ${prodB.name} | Stock: ${prodB.stockQuantity} ${prodB.baseUnit} | Price: ₹${prodB.pricePerBaseUnit}/${prodB.baseUnit}`);
+  console.log(`Product B Created: ${prodB.name} | Stock: ${prodB.stockQuantity} ${prodB.unit} | Price: ₹${prodB.pricePerUnit}/${prodB.unit}`);
 
   // 50 Items of Pipettes (Stored in 'items')
   const prodC = await Product.create({
     name: 'Glass Measuring Pipette 10mL',
     sku: 'PIP-10',
-    baseUnit: 'items',
-    pricePerBaseUnit: 12.0, // 12 INR per item
+    unit: 'items',
+    pricePerUnit: 12.0, // 12 INR per item
     stockQuantity: 50,
     category: 'Labware'
   });
-  console.log(`Product C Created: ${prodC.name} | Stock: ${prodC.stockQuantity} ${prodC.baseUnit} | Price: ₹${prodC.pricePerBaseUnit}/${prodC.baseUnit}`);
+  console.log(`Product C Created: ${prodC.name} | Stock: ${prodC.stockQuantity} ${prodC.unit} | Price: ₹${prodC.pricePerUnit}/${prodC.unit}`);
 
-  // 3. Seller builds an order cart with conversions
-  console.log('\n--- Step 3: Simulating Seller Cart Unit Conversions ---');
-  // Item 1: NaCl ordered in g (base unit match)
+  // 3. Seller builds an order cart directly
+  console.log('\n--- Step 3: Simulating Seller Cart Direct Pricing ---');
+  // Item 1: NaCl ordered in g (matches unit)
   const itemA_qty = 500;
   const itemA_unit = 'g';
-  const priceA = calculatePrice(itemA_qty, itemA_unit, prodA.baseUnit, prodA.pricePerBaseUnit);
-  console.log(`NaCl: Ordering ${itemA_qty} ${itemA_unit} (Base: ${prodA.baseUnit}). Calculated Price: ₹${priceA} (Expected: ₹250)`);
+  const priceA = Number((itemA_qty * prodA.pricePerUnit).toFixed(4));
+  console.log(`NaCl: Ordering ${itemA_qty} ${itemA_unit}. Calculated Price: ₹${priceA} (Expected: ₹250)`);
 
-  // Item 2: HCl ordered in L (base unit mismatch: L vs mL)
-  const itemB_qty = 1.5; // 1.5 Liters
-  const itemB_unit = 'L';
-  const priceB = calculatePrice(itemB_qty, itemB_unit, prodB.baseUnit, prodB.pricePerBaseUnit);
-  console.log(`HCl: Ordering ${itemB_qty} ${itemB_unit} (Base: ${prodB.baseUnit}). Calculated Price: ₹${priceB} (Expected: 1.5 * 1000 * 0.08 = ₹120)`);
+  // Item 2: HCl ordered in mL (matches unit)
+  const itemB_qty = 1500; // 1500 mL
+  const itemB_unit = 'mL';
+  const priceB = Number((itemB_qty * prodB.pricePerUnit).toFixed(4));
+  console.log(`HCl: Ordering ${itemB_qty} ${itemB_unit}. Calculated Price: ₹${priceB} (Expected: ₹120)`);
 
-  // Item 3: Pipettes ordered in items
+  // Item 3: Pipettes ordered in items (matches unit)
   const itemC_qty = 10;
   const itemC_unit = 'items';
-  const priceC = calculatePrice(itemC_qty, itemC_unit, prodC.baseUnit, prodC.pricePerBaseUnit);
-  console.log(`Pipettes: Ordering ${itemC_qty} ${itemC_unit} (Base: ${prodC.baseUnit}). Calculated Price: ₹${priceC} (Expected: 10 * 12 = ₹120)`);
+  const priceC = Number((itemC_qty * prodC.pricePerUnit).toFixed(4));
+  console.log(`Pipettes: Ordering ${itemC_qty} ${itemC_unit}. Calculated Price: ₹${priceC} (Expected: ₹120)`);
 
   const orderTotal = priceA + priceB + priceC;
   console.log(`Total Order Amount: ₹${orderTotal} (Expected: ₹490)`);
@@ -117,16 +116,15 @@ async function runTest() {
   // Stock Check & Subtraction
   for (const item of activeOrder.items) {
     const product = await Product.findById(item.product._id);
-    const qtyInBaseUnit = convertQuantity(item.quantity, item.unit, product.baseUnit);
     
-    console.log(`Verifying Stock for '${product.name}': Required ${qtyInBaseUnit} ${product.baseUnit}, Available ${product.stockQuantity} ${product.baseUnit}`);
-    if (qtyInBaseUnit > product.stockQuantity) {
+    console.log(`Verifying Stock for '${product.name}': Required ${item.quantity} ${product.unit}, Available ${product.stockQuantity} ${product.unit}`);
+    if (item.quantity > product.stockQuantity) {
       throw new Error(`Insufficient stock for ${product.name}`);
     }
 
-    product.stockQuantity = Number((product.stockQuantity - qtyInBaseUnit).toFixed(4));
+    product.stockQuantity = Number((product.stockQuantity - item.quantity).toFixed(4));
     await product.save();
-    console.log(`Stock updated for '${product.name}' to ${product.stockQuantity} ${product.baseUnit}`);
+    console.log(`Stock updated for '${product.name}' to ${product.stockQuantity} ${product.unit}`);
   }
 
   activeOrder.status = 'approved';
@@ -139,12 +137,12 @@ async function runTest() {
   const checkB = await Product.findById(prodB._id);
   const checkC = await Product.findById(prodC._id);
 
-  console.log(`NaCl Stock (Expected 500): ${checkA.stockQuantity} ${checkA.baseUnit}`);
-  console.log(`HCl Stock (Expected 500): ${checkB.stockQuantity} ${checkB.baseUnit}`);
-  console.log(`Pipette Stock (Expected 40): ${checkC.stockQuantity} ${checkC.baseUnit}`);
+  console.log(`NaCl Stock (Expected 500): ${checkA.stockQuantity} ${checkA.unit}`);
+  console.log(`HCl Stock (Expected 500): ${checkB.stockQuantity} ${checkB.unit}`);
+  console.log(`Pipette Stock (Expected 40): ${checkC.stockQuantity} ${checkC.unit}`);
 
   if (checkA.stockQuantity === 500 && checkB.stockQuantity === 500 && checkC.stockQuantity === 40) {
-    console.log('\n>>> SUCCESS: ALL TESTS PASSED SUCCESSFULLY! UNIT CONVERSIONS AND STOCK MANAGEMENT ARE 100% CORRECT! <<<');
+    console.log('\n>>> SUCCESS: ALL TESTS PASSED SUCCESSFULLY! DIRECT PRICING AND STOCK DEDUCTION ARE 100% CORRECT! <<<');
   } else {
     console.error('\n>>> FAILURE: STOCK MISMATCH! <<<');
   }

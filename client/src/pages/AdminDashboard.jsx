@@ -152,7 +152,7 @@ const AdminDashboard = () => {
                                 ({item.quantity} {item.unit})
                               </span>
                               <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                                Rate: ₹{product.pricePerBaseUnit || 0} per {product.baseUnit || ''}
+                                Rate: ₹{product.pricePerUnit || 0} per {product.unit || ''}
                               </div>
                             </div>
                           );
@@ -252,7 +252,7 @@ const AdminDashboard = () => {
               <div key={p._id} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 1rem', background: 'rgba(0,0,0,0.1)', borderRadius: '6px' }}>
                 <span>{p.name}</span>
                 <strong className="text-warning">
-                  {p.stockQuantity} {p.baseUnit}
+                  {p.stockQuantity} {p.unit}
                 </strong>
               </div>
             ))}

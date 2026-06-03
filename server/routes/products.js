@@ -11,7 +11,7 @@ router.get('/', protect, async (req, res) => {
     const { search, category } = req.query;
     let query = {};
 
-    // Search filter: matching name or SKU
+    // Search filter
     if (search) {
       query.$or = [
         { name: { $regex: search, $options: 'i' } },
@@ -33,7 +33,7 @@ router.get('/', protect, async (req, res) => {
 });
 
 // @route   GET /api/products/:id
-// @desc    Get a single product details
+// @desc    Get a single product
 // @access  Private
 router.get('/:id', protect, async (req, res) => {
   try {
@@ -52,7 +52,7 @@ router.get('/:id', protect, async (req, res) => {
 // @desc    Create a product
 // @access  Private (Admin Only)
 router.post('/', protect, authorize('admin'), async (req, res) => {
-  const { name, sku, description, baseUnit, pricePerBaseUnit, stockQuantity, category } = req.body;
+  const { name, sku, description, unit, pricePerUnit, stockQuantity, category } = req.body;
 
   try {
     // Check if SKU exists
@@ -65,8 +65,8 @@ router.post('/', protect, authorize('admin'), async (req, res) => {
       name,
       sku,
       description,
-      baseUnit,
-      pricePerBaseUnit,
+      unit,
+      pricePerUnit,
       stockQuantity: stockQuantity || 0,
       category,
     });
@@ -82,7 +82,7 @@ router.post('/', protect, authorize('admin'), async (req, res) => {
 // @desc    Update a product
 // @access  Private (Admin Only)
 router.put('/:id', protect, authorize('admin'), async (req, res) => {
-  const { name, sku, description, baseUnit, pricePerBaseUnit, stockQuantity, category } = req.body;
+  const { name, sku, description, unit, pricePerUnit, stockQuantity, category } = req.body;
 
   try {
     let product = await Product.findById(req.params.id);
@@ -98,12 +98,12 @@ router.put('/:id', protect, authorize('admin'), async (req, res) => {
       }
     }
 
-    // Update product fields
+    // Update fields
     product.name = name || product.name;
     product.sku = sku || product.sku;
     product.description = description !== undefined ? description : product.description;
-    product.baseUnit = baseUnit || product.baseUnit;
-    product.pricePerBaseUnit = pricePerBaseUnit !== undefined ? pricePerBaseUnit : product.pricePerBaseUnit;
+    product.unit = unit || product.unit;
+    product.pricePerUnit = pricePerUnit !== undefined ? pricePerUnit : product.pricePerUnit;
     product.stockQuantity = stockQuantity !== undefined ? stockQuantity : product.stockQuantity;
     product.category = category || product.category;
 
